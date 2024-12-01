@@ -1,11 +1,11 @@
 {
 	"team": "Chocobois",
-	"title": "Game Jam Template",
-	"description": "We make game, but faster!",
+	"title": "Chocobox",
+	"description": "Jackbox-like game with a twist",
 	"itch": {
 		"upload": false,
-		"username": "username",
-		"game": "game-name"
+		"username": "golen",
+		"game": "jackbox"
 	},
 	"neutralino": {
 		"allow": ["app.exit", "window.center"]
