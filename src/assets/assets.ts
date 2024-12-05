@@ -38,9 +38,32 @@ const spritesheets: SpriteSheet[] = [
 
 /* Audios */
 const audios: Audio[] = [
-	music("title", "m_main_menu"),
-	music("first", "m_first"),
-	sound("tree/rustle", "t_rustle", 0.5),
+	sound("memes/anger.ogg", "anger"),
+	sound("memes/bonk.ogg", "bonk"),
+	sound("memes/boom.ogg", "boom"),
+	sound("memes/bruh.ogg", "bruh"),
+	sound("memes/bup.ogg", "bup"),
+	sound("memes/crab.ogg", "crab"),
+	sound("memes/disc.ogg", "disc"),
+	sound("memes/dog.ogg", "dog"),
+	sound("memes/e.ogg", "e"),
+	sound("memes/gaster.ogg", "gaster"),
+	sound("memes/gnome.ogg", "gnome"),
+	sound("memes/gun.ogg", "gun"),
+	sound("memes/mariopaint_baby.ogg", "mariopaint_baby"),
+	sound("memes/mariopaint_cat.ogg", "mariopaint_cat"),
+	sound("memes/mariopaint_dog.ogg", "mariopaint_dog"),
+	sound("memes/necoarc.ogg", "necoarc"),
+	sound("memes/oof.ogg", "oof"),
+	sound("memes/pizza.ogg", "pizza"),
+	sound("memes/smw_1up.ogg", "smw_1up"),
+	sound("memes/smw_spinjump.ogg", "smw_spinjump"),
+	sound("memes/smw_stomp.ogg", "smw_stomp"),
+	sound("memes/smw_yoshi.ogg", "smw_yoshi"),
+	sound("memes/swan.ogg", "swan"),
+	sound("memes/thwomp.ogg", "thwomp"),
+	sound("memes/whatsapp.ogg", "whatsapp"),
+	sound("memes/yoda.ogg", "yoda"),
 ];
 
 /* Fonts */
