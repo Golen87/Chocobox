@@ -38,6 +38,21 @@ const spritesheets: SpriteSheet[] = [
 
 /* Audios */
 const audios: Audio[] = [
+	music("Opening Theme.mp3", "title"),
+	music("Peaceful Mushroom Village.mp3", "lobby"),
+	// music("Traveling The Warp Pipe.mp3", "cutscene"),
+	music("Play A Mini-Game!.mp3", "cutscene"),
+	music("Mini Game Island All-In-One.mp3", "drawing"),
+	music("Mushroom Forest.mp3", "writing"),
+	music("Tropical Island.mp3", "pairing"),
+	music("The Room Underground.mp3", "showdown"),
+	music("After The Victory.mp3", "winner"),
+
+	music("Mini Game Victory 3.mp3", "victory_1"),
+	music("Mini Game Victory 4.mp3", "victory_2"),
+	music("Mini Game Victory 5.mp3", "victory_3"),
+	// music("Rainbow Castle.mp3", "title"),
+	
 	sound("memes/anger.ogg", "anger"),
 	sound("memes/bonk.ogg", "bonk"),
 	sound("memes/boom.ogg", "boom"),

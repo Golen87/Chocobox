@@ -35,7 +35,7 @@ export const spritesheet = (
 	return { key, width, height, path: imageGlob[`./images/${path}`] };
 };
 
-const musicGlob = import.meta.glob<string>("./music/**/*.mp3", {
+const musicGlob = import.meta.glob<string>("./music/**/*", {
 	query: "?url",
 	import: "default",
 	eager: true,
@@ -46,10 +46,10 @@ export const music = (
 	volume?: number,
 	rate?: number
 ): Audio => {
-	return { key, volume, rate, path: musicGlob[`./music/${path}.mp3`] };
+	return { key, volume, rate, path: musicGlob[`./music/${path}`] };
 };
 
-const audioGlob = import.meta.glob<string>("./sounds/**/*.mp3", {
+const audioGlob = import.meta.glob<string>("./sounds/**/*", {
 	query: "?url",
 	import: "default",
 	eager: true,
@@ -60,7 +60,7 @@ export const sound = (
 	volume?: number,
 	rate?: number
 ): Audio => {
-	return { key, volume, rate, path: audioGlob[`./sounds/${path}.mp3`] };
+	return { key, volume, rate, path: audioGlob[`./sounds/${path}`] };
 };
 
 const fontGlob = import.meta.glob<string>("./fonts/**/*.ttf", {
