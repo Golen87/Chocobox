@@ -1,5 +1,6 @@
 export enum Request {
 	ServerToken = "token",
+
 	SetMode = "set_mode",
 }
 
@@ -11,6 +12,7 @@ export enum Response {
 	ServerError = "server_error",
 	UserJoin = "server_join",
 	UserLeave = "server_leave",
+
 	SubmitImage = "submit_image",
 	SubmitText = "submit_text",
 	SubmitVote = "submit_vote",
@@ -96,7 +98,7 @@ export interface SubmitText {
 export interface SubmitVote {
 	type: Response.SubmitVote;
 	user: string;
-	vote: number;
+	vote: string;
 }
 
 // Upon client submitting a vote

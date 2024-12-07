@@ -1,5 +1,6 @@
 import { BaseScene } from "@/scenes/BaseScene";
 import { GameState } from "@/utils/GameState";
+import { Player } from "../Player";
 
 export class Page extends Phaser.GameObjects.Container {
 	public scene: BaseScene;
@@ -29,5 +30,21 @@ export class Page extends Phaser.GameObjects.Container {
 		});
 	}
 
-	update(time: number, delta: number): void {}
+	update(time: number, delta: number): void {
+		// Implement in subclass
+	}
+
+	updatePlayers(players: Player[]): void {
+		// Implement in subclass
+	}
+
+	setVisible(value: boolean): this {
+		if (this.visible == value) return this;
+		if (value) this.onActivate();
+		return super.setVisible(value);
+	}
+
+	onActivate() {
+		// Implement in subclass
+	}
 }

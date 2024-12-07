@@ -36,14 +36,16 @@ export class SocketManager extends Phaser.Events.EventEmitter {
 	}
 
 	disconnect() {
-		this.socket.close();
+		if (this.socket) {
+			this.socket.close();
+		}
 	}
 
 	/* Outgoing messages */
 
 	send(data: P.AnyRequest) {
 		if (this.socket) {
-			// console.log(data);
+			console.log(data);
 			this.socket.send(JSON.stringify(data));
 		} else console.warn("Socket not connected");
 	}
@@ -58,7 +60,7 @@ export class SocketManager extends Phaser.Events.EventEmitter {
 	/* Incoming messages */
 
 	receive(data: P.AnyResponse) {
-		// console.log(data);
+		console.log(data);
 		if (data.type) {
 			const handler = this.handlers[data.type];
 			if (handler) {

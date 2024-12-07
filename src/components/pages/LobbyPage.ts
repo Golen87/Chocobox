@@ -2,9 +2,11 @@ import { BaseScene } from "@/scenes/BaseScene";
 import { Page } from "./Page";
 import { GameState } from "@/utils/GameState";
 import { ColorStr } from "@/utils/colors";
+import { Player } from "../Player";
 
 export class LobbyPage extends Page {
 	private code: Phaser.GameObjects.Text;
+	private playerBoxes: PlayerBox[];
 
 	constructor(scene: BaseScene) {
 		super(scene, GameState.Lobby);
@@ -38,11 +40,13 @@ export class LobbyPage extends Page {
 			.setStroke("black", 16);
 		this.add(this.code);
 
+		this.playerBoxes = [];
 		for (let i = 0; i < 8; i++) {
 			let x = 1250 + 380 * Math.floor(i / 4);
 			let y = 165 + 250 * (i % 4);
 			let frame = (i + Math.floor(i / 4)) % 2;
 			let playerBox = new PlayerBox(scene, x, y, frame);
+			this.playerBoxes.push(playerBox);
 			this.add(playerBox);
 		}
 	}
@@ -50,14 +54,32 @@ export class LobbyPage extends Page {
 	setCode(code: string): void {
 		this.code.setText(code);
 	}
+
+	updatePlayers(players: Player[]): void {
+		const boxPlayers = this.playerBoxes.map((box) => box.player);
+		const addedPlayers = players.filter(
+			(player) => !boxPlayers.includes(player)
+		);
+
+		this.playerBoxes.forEach((box, i) => {
+			if (box.player == null) {
+				box.setPlayer(addedPlayers.shift() || null);
+			} else if (!players.includes(box.player)) {
+				box.setPlayer(null);
+			}
+		});
+	}
 }
 
 class PlayerBox extends Phaser.GameObjects.Container {
+	public player: Player | null;
+
 	private box: Phaser.GameObjects.Image;
 	private text: Phaser.GameObjects.Text;
 
 	constructor(scene: BaseScene, x: number, y: number, startFrame: number) {
 		super(scene, x, y);
+		this.player = null;
 
 		let frame = startFrame;
 		this.box = scene.add.image(0, 0, "user_box", frame);
@@ -78,9 +100,16 @@ class PlayerBox extends Phaser.GameObjects.Container {
 		this.setPlayer(null);
 	}
 
-	setPlayer(name: string | null) {
-		this.box.setAlpha(name ? 1 : 0.25);
-		this.text.setAlpha(name ? 1 : 0.25);
-		this.text.setText(name || "Join");
+	setPlayer(player: Player | null) {
+		this.player = player;
+		if (player) {
+			this.box.setAlpha(1);
+			this.text.setAlpha(1);
+			this.text.setText(player.playerId);
+		} else {
+			this.box.setAlpha(0.25);
+			this.text.setAlpha(0.25);
+			this.text.setText("Join");
+		}
 	}
 }

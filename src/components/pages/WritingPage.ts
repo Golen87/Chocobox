@@ -6,4 +6,8 @@ export class WritingPage extends Page {
 	constructor(scene: BaseScene) {
 		super(scene, GameState.Writing);
 	}
+
+	onActivate(): void {
+		this.emit("mode", "typing");
+	}
 }

@@ -17,9 +17,17 @@ import { WinnerPage } from "@/components/pages/WinnerPage";
 export class GameScene extends BaseScene {
 	private state: GameState;
 	private socket: SocketManager;
-	private pages: { [key in GameState]: Page };
+	private pages: Page[];
+	private players: Player[];
 
-	private players: Map<string, Player>;
+	private titlePage: TitlePage;
+	private lobbyPage: LobbyPage;
+	private cutscenePage: CutscenePage;
+	private drawingPage: DrawingPage;
+	private writingPage: WritingPage;
+	private pairingPage: PairingPage;
+	private showdownPage: ShowdownPage;
+	private winnerPage: WinnerPage;
 
 	constructor() {
 		super({ key: "GameScene" });
@@ -42,53 +50,36 @@ export class GameScene extends BaseScene {
 
 		/* Pages */
 
-		this.pages = {
-			[GameState.Title]: new TitlePage(this),
-			[GameState.Lobby]: new LobbyPage(this),
-			[GameState.Cutscene]: new CutscenePage(this),
-			[GameState.Drawing]: new DrawingPage(this),
-			[GameState.Writing]: new WritingPage(this),
-			[GameState.Pairing]: new PairingPage(this),
-			[GameState.Showdown]: new ShowdownPage(this),
-			[GameState.Winner]: new WinnerPage(this),
-		};
+		this.pages = [
+			(this.titlePage = new TitlePage(this)),
+			(this.lobbyPage = new LobbyPage(this)),
+			(this.cutscenePage = new CutscenePage(this)),
+			(this.drawingPage = new DrawingPage(this)),
+			(this.writingPage = new WritingPage(this)),
+			(this.pairingPage = new PairingPage(this)),
+			(this.showdownPage = new ShowdownPage(this)),
+			(this.winnerPage = new WinnerPage(this)),
+		];
 
-		/* Graphics */
+		this.pages.forEach((page: Page) => {
+			page.on("mode", this.socket.sendSetMode, this.socket);
+		});
 
-		this.players = new Map();
+		this.players = [];
 
 		/* Init */
 
 		this.setState(GameState.Title);
 
-		this.input.once("pointerdown", () => {
-			this.setState(GameState.Lobby);
-		});
-
-		this.input.keyboard?.on("keydown-ONE", () =>
-			this.setState(GameState.Title)
-		);
-		this.input.keyboard?.on("keydown-TWO", () =>
-			this.setState(GameState.Lobby)
-		);
-		this.input.keyboard?.on("keydown-THREE", () =>
-			this.setState(GameState.Cutscene)
-		);
-		this.input.keyboard?.on("keydown-FOUR", () =>
-			this.setState(GameState.Drawing)
-		);
-		this.input.keyboard?.on("keydown-FIVE", () =>
-			this.setState(GameState.Writing)
-		);
-		this.input.keyboard?.on("keydown-SIX", () =>
-			this.setState(GameState.Pairing)
-		);
-		this.input.keyboard?.on("keydown-SEVEN", () =>
-			this.setState(GameState.Showdown)
-		);
-		this.input.keyboard?.on("keydown-EIGHT", () =>
-			this.setState(GameState.Winner)
-		);
+		const k = this.input.keyboard;
+		k?.on("keydown-ONE", () => this.setState(GameState.Title));
+		k?.on("keydown-TWO", () => this.setState(GameState.Lobby));
+		k?.on("keydown-THREE", () => this.setState(GameState.Cutscene));
+		k?.on("keydown-FOUR", () => this.setState(GameState.Drawing));
+		k?.on("keydown-FIVE", () => this.setState(GameState.Writing));
+		k?.on("keydown-SIX", () => this.setState(GameState.Pairing));
+		k?.on("keydown-SEVEN", () => this.setState(GameState.Showdown));
+		k?.on("keydown-EIGHT", () => this.setState(GameState.Winner));
 	}
 
 	setState(state: GameState) {
@@ -97,7 +88,15 @@ export class GameScene extends BaseScene {
 			page.setVisible(page.gameState == this.state)
 		);
 
-		if (state == GameState.Lobby) this.socket.connect();
+		if (state == GameState.Title) {
+			this.socket.disconnect();
+			this.players = [];
+		}
+		if (state == GameState.Lobby) {
+			this.socket.connect();
+		}
+
+		this.playMusic(state);
 	}
 
 	update(time: number, delta: number) {
@@ -110,6 +109,11 @@ export class GameScene extends BaseScene {
 		this.players.forEach((player) => player.update(time, delta));
 	}
 
+	playMusic(song: string) {
+		this.sound.stopAll();
+		this.sound.play(song, { loop: true, volume: 0.3 });
+	}
+
 	/* Socket callbacks */
 
 	onPublicCode(code: string) {
@@ -117,70 +121,50 @@ export class GameScene extends BaseScene {
 	}
 
 	onUserJoin(user: string, role: string) {
-		let x = 100 + (this.W - 200) * Math.random();
-		let y = 100 + (this.H - 200) * Math.random();
-		let player = new Player(this, x, y);
-		this.players.set(user, player);
+		const player = this.getPlayer(user);
+		if (player) {
+			player.online = true;
+		} else {
+			this.players.push(new Player(user));
+		}
 
-		// this.socket.sendSetMode("blank");
-		// this.socket.sendSetMode("poll");
-		this.socket.sendSetMode("typing");
-		// this.socket.sendSetMode("joystick");
-		// this.socket.sendSetMode("drawing");
+		this.pages.forEach((page: Page) => page.updatePlayers(this.players));
 	}
 
 	onUserLeave(user: string, role: string) {
-		const player = this.players.get(user);
-		if (player) {
-			this.players.delete(user);
-			player.destroy();
+		const player = this.getPlayer(user);
+		if (!player) {
+			return console.error("Player not found", user);
 		}
+
+		if (this.state == GameState.Lobby) {
+			this.players = this.players.filter((player) => player.playerId !== user);
+		} else {
+			player.online = false;
+		}
+
+		this.pages.forEach((page) => page.updatePlayers(this.players));
 	}
 
-	onSubmitImage(user: string, image: string) {}
+	onSubmitImage(user: string, image: string) {
+		const key = `drawing_${user}`;
+		const base64 = `data:image/png;base64,${image}`;
+
+		this.textures.once("addtexture-" + key, () => {
+			this.add.image(this.CX, this.CY, key);
+		});
+		this.textures.addBase64(key, base64);
+	}
 
 	onSubmitText(user: string, text: string) {}
 
 	onSubmitVote(user: string, vote: string) {}
 
-	onSubmitMovement(user: string, x: number, y: number) {
-		const player = this.players.get(user);
-		if (player) {
-			player.inputVec.set(x, -y);
-		}
-	}
+	onSubmitMovement(user: string, x: number, y: number) {}
 
 	/* Getters */
 
-	get titlePage() {
-		return this.pages[GameState.Title] as TitlePage;
-	}
-
-	get lobbyPage() {
-		return this.pages[GameState.Lobby] as LobbyPage;
-	}
-
-	get cutscenePage() {
-		return this.pages[GameState.Cutscene] as CutscenePage;
-	}
-
-	get drawingPage() {
-		return this.pages[GameState.Drawing] as DrawingPage;
-	}
-
-	get writingPage() {
-		return this.pages[GameState.Writing] as WritingPage;
-	}
-
-	get pairingPage() {
-		return this.pages[GameState.Pairing] as PairingPage;
-	}
-
-	get showdownPage() {
-		return this.pages[GameState.Showdown] as ShowdownPage;
-	}
-
-	get winnerPage() {
-		return this.pages[GameState.Winner] as WinnerPage;
+	getPlayer(name: string): Player | undefined {
+		return this.players.find((player) => player.playerId == name);
 	}
 }

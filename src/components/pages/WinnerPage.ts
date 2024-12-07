@@ -6,4 +6,8 @@ export class WinnerPage extends Page {
 	constructor(scene: BaseScene) {
 		super(scene, GameState.Winner);
 	}
+
+	onActivate(): void {
+		this.emit("mode", "blank");
+	}
 }
