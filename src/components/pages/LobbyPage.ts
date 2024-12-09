@@ -1,4 +1,4 @@
-import { BaseScene } from "@/scenes/BaseScene";
+import { GameScene } from "@/scenes/GameScene";
 import { Page } from "./Page";
 import { GameState } from "@/utils/GameState";
 import { ColorStr } from "@/utils/colors";
@@ -8,7 +8,7 @@ export class LobbyPage extends Page {
 	private code: Phaser.GameObjects.Text;
 	private playerBoxes: PlayerBox[];
 
-	constructor(scene: BaseScene) {
+	constructor(scene: GameScene) {
 		super(scene, GameState.Lobby);
 
 		let instruction = scene
@@ -77,7 +77,7 @@ class PlayerBox extends Phaser.GameObjects.Container {
 	private box: Phaser.GameObjects.Image;
 	private text: Phaser.GameObjects.Text;
 
-	constructor(scene: BaseScene, x: number, y: number, startFrame: number) {
+	constructor(scene: GameScene, x: number, y: number, startFrame: number) {
 		super(scene, x, y);
 		this.player = null;
 
@@ -105,7 +105,7 @@ class PlayerBox extends Phaser.GameObjects.Container {
 		if (player) {
 			this.box.setAlpha(1);
 			this.text.setAlpha(1);
-			this.text.setText(player.playerId);
+			this.text.setText(player.name);
 		} else {
 			this.box.setAlpha(0.25);
 			this.text.setAlpha(0.25);

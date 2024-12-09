@@ -1,13 +1,13 @@
-import { BaseScene } from "@/scenes/BaseScene";
+import { GameScene } from "@/scenes/GameScene";
 import { Page } from "./Page";
 import { GameState } from "@/utils/GameState";
 
 export class WinnerPage extends Page {
-	constructor(scene: BaseScene) {
+	constructor(scene: GameScene) {
 		super(scene, GameState.Winner);
 	}
 
 	onActivate(): void {
-		this.emit("mode", "blank");
+		this.socket.setBlank();
 	}
 }

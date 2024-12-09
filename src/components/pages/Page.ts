@@ -1,14 +1,14 @@
-import { BaseScene } from "@/scenes/BaseScene";
+import { GameScene } from "@/scenes/GameScene";
 import { GameState } from "@/utils/GameState";
 import { Player } from "../Player";
 
 export class Page extends Phaser.GameObjects.Container {
-	public scene: BaseScene;
+	public scene: GameScene;
 	public gameState: GameState;
 
 	private background: Phaser.GameObjects.Image;
 
-	constructor(scene: BaseScene, gameState: GameState) {
+	constructor(scene: GameScene, gameState: GameState) {
 		super(scene, 0, 0);
 		scene.add.existing(this);
 		this.scene = scene;
@@ -46,5 +46,9 @@ export class Page extends Phaser.GameObjects.Container {
 
 	onActivate() {
 		// Implement in subclass
+	}
+
+	get socket() {
+		return this.scene.getSocket();
 	}
 }
