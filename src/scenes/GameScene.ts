@@ -1,6 +1,6 @@
 import { BaseScene } from "@/scenes/BaseScene";
 import { Player } from "@/components/Player";
-import { SocketManager } from "@/utils/SocketManager";
+import { SocketManager } from "@/socket/SocketManager";
 import { Color } from "@/utils/colors";
 import { GameState } from "@/utils/GameState";
 
@@ -13,8 +13,12 @@ import { WritingPage } from "@/components/pages/WritingPage";
 import { PairingPage } from "@/components/pages/PairingPage";
 import { ShowdownPage } from "@/components/pages/ShowdownPage";
 import { WinnerPage } from "@/components/pages/WinnerPage";
+import { ClientIncoming, ClientType } from "@/socket/clientProtocol";
+import * as Client from "@/socket/clientProtocol";
+import { OmniType } from "@/socket/omniProtocol";
+import * as Omni from "@/socket/omniProtocol";
 
-export class GameScene extends BaseScene {
+export class GameScene extends BaseScene implements ClientIncoming {
 	private state: GameState;
 	private socket: SocketManager;
 	private pages: Page[];
@@ -33,20 +37,22 @@ export class GameScene extends BaseScene {
 		super({ key: "GameScene" });
 	}
 
-	create(): void {
+	create() {
 		this.fade(false, 200, 0x000000);
 		this.cameras.main.setBackgroundColor(Color.Sky900);
 
 		/* Socket */
 
-		this.socket = new SocketManager();
-		this.socket.on("publicCode", this.onPublicCode, this);
-		this.socket.on("userJoin", this.onUserJoin, this);
-		this.socket.on("userLeave", this.onUserLeave, this);
-		this.socket.on("submitImage", this.onSubmitImage, this);
-		this.socket.on("submitText", this.onSubmitText, this);
-		this.socket.on("submitVote", this.onSubmitVote, this);
-		this.socket.on("submitMovement", this.onSubmitMovement, this);
+		this.socket = new SocketManager({
+			[OmniType.Code]: this.onPublicCode.bind(this),
+			[OmniType.UserJoin]: this.onUserJoin.bind(this),
+			[OmniType.UserLeave]: this.onUserLeave.bind(this),
+			[ClientType.SubmitImage]: this.onSubmitImage.bind(this),
+			[ClientType.SubmitText]: this.onSubmitText.bind(this),
+			[ClientType.SubmitVote]: this.onSubmitVote.bind(this),
+			[ClientType.SubmitMovement]: this.onSubmitMovement.bind(this),
+			[ClientType.SubmitMashup]: this.onSubmitMashup.bind(this),
+		});
 
 		/* Pages */
 
@@ -61,15 +67,11 @@ export class GameScene extends BaseScene {
 			(this.winnerPage = new WinnerPage(this)),
 		];
 
-		this.pages.forEach((page: Page) => {
-			page.on("mode", this.socket.sendSetMode, this.socket);
-		});
-
 		this.players = [];
 
 		/* Init */
 
-		this.setState(GameState.Title);
+		this.setState(GameState.Lobby);
 
 		const k = this.input.keyboard;
 		k?.on("keydown-ONE", () => this.setState(GameState.Title));
@@ -99,6 +101,14 @@ export class GameScene extends BaseScene {
 		this.playMusic(state);
 	}
 
+	progressState() {
+		const index = this.pages.findIndex((page) => page.gameState == this.state);
+		const nextPage = this.pages[index + 1];
+		if (nextPage) {
+			this.setState(nextPage.gameState);
+		}
+	}
+
 	update(time: number, delta: number) {
 		Object.values(this.pages).forEach((page: Page) => {
 			if (page.gameState == this.state) {
@@ -116,29 +126,36 @@ export class GameScene extends BaseScene {
 
 	/* Socket callbacks */
 
-	onPublicCode(code: string) {
+	onPublicCode({ code }: Omni.ServerCode) {
 		this.lobbyPage.setCode(code);
 	}
 
-	onUserJoin(user: string, role: string) {
+	onUserJoin({ user, role, name }: Omni.UserJoin) {
+		if (role != "guest") {
+			return console.error("User role not guest", user, role);
+		}
+		if (!name) {
+			return console.error("User name not provided", user, name);
+		}
+
 		const player = this.getPlayer(user);
 		if (player) {
 			player.online = true;
 		} else {
-			this.players.push(new Player(user));
+			this.players.push(new Player(user, name));
 		}
 
 		this.pages.forEach((page: Page) => page.updatePlayers(this.players));
 	}
 
-	onUserLeave(user: string, role: string) {
+	onUserLeave({ user, role }: Omni.UserLeave) {
 		const player = this.getPlayer(user);
 		if (!player) {
 			return console.error("Player not found", user);
 		}
 
 		if (this.state == GameState.Lobby) {
-			this.players = this.players.filter((player) => player.playerId !== user);
+			this.players = this.players.filter((player) => player.userId !== user);
 		} else {
 			player.online = false;
 		}
@@ -146,25 +163,58 @@ export class GameScene extends BaseScene {
 		this.pages.forEach((page) => page.updatePlayers(this.players));
 	}
 
-	onSubmitImage(user: string, image: string) {
-		const key = `drawing_${user}`;
-		const base64 = `data:image/png;base64,${image}`;
+	onSubmitImage({ user, base64 }: Client.SubmitImage) {
+		const player = this.getPlayer(user);
+		if (!player) {
+			return console.error("Player not found", user);
+		}
+		if (this.state != GameState.Drawing) {
+			return console.error("Cannot submit image in current state", this.state);
+		}
 
-		this.textures.once("addtexture-" + key, () => {
-			this.add.image(this.CX, this.CY, key);
+		// Add image to player
+		const round = this.drawingPage.round;
+		const imageId = `${user}_drawing_${round}`;
+		player.addImage(imageId, base64, round);
+
+		// Load base64 texture
+		this.textures.addBase64(imageId, base64);
+		this.textures.once("addtexture-" + imageId, () => {
+			this.add.image(this.CX, this.CY, imageId);
 		});
-		this.textures.addBase64(key, base64);
+
+		// Check if all players have submitted
+		const allImagesDone = this.players.every((player) =>
+			player.images.find((image) => image.round == round)
+		);
+		if (allImagesDone) {
+			this.drawingPage.allPlayersDone();
+		}
 	}
 
-	onSubmitText(user: string, text: string) {}
+	onSubmitText({ user, text }: Client.SubmitText) {
+		console.log("User submitted text", user, text);
+	}
 
-	onSubmitVote(user: string, vote: string) {}
+	onSubmitVote({ user, vote }: Client.SubmitVote) {
+		console.log("User submitted vote", user, vote);
+	}
 
-	onSubmitMovement(user: string, x: number, y: number) {}
+	onSubmitMovement({ user, x, y }: Client.SubmitMovement) {
+		console.log("User submitted movement", user, x, y);
+	}
+
+	onSubmitMashup({ user, imageId, textId }: Client.SubmitMashup) {
+		console.log("User submitted mashup", user, imageId, textId);
+	}
 
 	/* Getters */
 
-	getPlayer(name: string): Player | undefined {
-		return this.players.find((player) => player.playerId == name);
+	getSocket(): SocketManager {
+		return this.socket;
+	}
+
+	getPlayer(userId: string): Player | undefined {
+		return this.players.find((player) => player.userId == userId);
 	}
 }
