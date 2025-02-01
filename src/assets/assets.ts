@@ -34,6 +34,7 @@ const images: Image[] = [
 /* Spritesheets */
 const spritesheets: SpriteSheet[] = [
 	spritesheet("ui/user_box.png", "user_box", 320, 320),
+	spritesheet("ui/card.png", "card", 400, 600),
 ];
 
 /* Audios */

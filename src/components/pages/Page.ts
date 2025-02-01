@@ -34,7 +34,7 @@ export class Page extends Phaser.GameObjects.Container {
 		// Implement in subclass
 	}
 
-	updatePlayers(players: Player[]): void {
+	updatePlayers(): void {
 		// Implement in subclass
 	}
 
@@ -50,5 +50,9 @@ export class Page extends Phaser.GameObjects.Container {
 
 	get socket() {
 		return this.scene.getSocket();
+	}
+
+	get players() {
+		return this.scene.getPlayers();
 	}
 }

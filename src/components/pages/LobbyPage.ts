@@ -55,16 +55,16 @@ export class LobbyPage extends Page {
 		this.code.setText(code);
 	}
 
-	updatePlayers(players: Player[]): void {
+	updatePlayers(): void {
 		const boxPlayers = this.playerBoxes.map((box) => box.player);
-		const addedPlayers = players.filter(
+		const addedPlayers = this.players.filter(
 			(player) => !boxPlayers.includes(player)
 		);
 
 		this.playerBoxes.forEach((box, i) => {
 			if (box.player == null) {
 				box.setPlayer(addedPlayers.shift() || null);
-			} else if (!players.includes(box.player)) {
+			} else if (!this.players.includes(box.player)) {
 				box.setPlayer(null);
 			}
 		});

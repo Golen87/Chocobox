@@ -17,6 +17,12 @@ import { ClientIncoming, ClientType } from "@/socket/clientProtocol";
 import * as Client from "@/socket/clientProtocol";
 import { OmniType } from "@/socket/omniProtocol";
 import * as Omni from "@/socket/omniProtocol";
+import { PlayerPanel } from "@/components/PlayerPanel";
+import { fakeSubmit } from "@/components/EXAMPLE_IMAGES";
+
+export const MAX_IMAGES = 3;
+export const MAX_TEXTS = 3;
+export const MAX_PAIRINGS = 3;
 
 export class GameScene extends BaseScene implements ClientIncoming {
 	private state: GameState;
@@ -32,6 +38,8 @@ export class GameScene extends BaseScene implements ClientIncoming {
 	private pairingPage: PairingPage;
 	private showdownPage: ShowdownPage;
 	private winnerPage: WinnerPage;
+
+	private playerPanel: PlayerPanel;
 
 	constructor() {
 		super({ key: "GameScene" });
@@ -67,7 +75,12 @@ export class GameScene extends BaseScene implements ClientIncoming {
 			(this.winnerPage = new WinnerPage(this)),
 		];
 
+		/* Players */
+
 		this.players = [];
+
+		this.playerPanel = new PlayerPanel(this, this.CX, this.H - 150);
+		this.playerPanel.updatePlayers(this.players);
 
 		/* Init */
 
@@ -82,12 +95,22 @@ export class GameScene extends BaseScene implements ClientIncoming {
 		k?.on("keydown-SIX", () => this.setState(GameState.Pairing));
 		k?.on("keydown-SEVEN", () => this.setState(GameState.Showdown));
 		k?.on("keydown-EIGHT", () => this.setState(GameState.Winner));
+		k?.on("keydown-SPACE", () => this.progressState());
+
+		// Fake
+		this.addEvent(500, () => fakeSubmit(this, "abcdef"));
 	}
 
 	setState(state: GameState) {
 		this.state = state;
+
 		Object.values(this.pages).forEach((page: Page) =>
 			page.setVisible(page.gameState == this.state)
+		);
+		this.playerPanel.setVisible(
+			state == GameState.Drawing ||
+				state == GameState.Writing ||
+				state == GameState.Pairing
 		);
 
 		if (state == GameState.Title) {
@@ -96,6 +119,16 @@ export class GameScene extends BaseScene implements ClientIncoming {
 		}
 		if (state == GameState.Lobby) {
 			this.socket.connect();
+		}
+		if (
+			state == GameState.Drawing ||
+			state == GameState.Writing ||
+			state == GameState.Pairing
+		) {
+			this.playerPanel.updateCount(
+				this.players.map((player) => 0),
+				1
+			);
 		}
 
 		this.playMusic(state);
@@ -117,6 +150,8 @@ export class GameScene extends BaseScene implements ClientIncoming {
 		});
 
 		this.players.forEach((player) => player.update(time, delta));
+
+		this.playerPanel.update(time, delta);
 	}
 
 	playMusic(song: string) {
@@ -145,7 +180,8 @@ export class GameScene extends BaseScene implements ClientIncoming {
 			this.players.push(new Player(user, name));
 		}
 
-		this.pages.forEach((page: Page) => page.updatePlayers(this.players));
+		this.playerPanel.updatePlayers(this.players);
+		this.pages.forEach((page: Page) => page.updatePlayers());
 	}
 
 	onUserLeave({ user, role }: Omni.UserLeave) {
@@ -160,7 +196,8 @@ export class GameScene extends BaseScene implements ClientIncoming {
 			player.online = false;
 		}
 
-		this.pages.forEach((page) => page.updatePlayers(this.players));
+		this.playerPanel.updatePlayers(this.players);
+		this.pages.forEach((page) => page.updatePlayers());
 	}
 
 	onSubmitImage({ user, base64 }: Client.SubmitImage) {
@@ -173,27 +210,60 @@ export class GameScene extends BaseScene implements ClientIncoming {
 		}
 
 		// Add image to player
-		const round = this.drawingPage.round;
+		const round = player.images.length + 1;
 		const imageId = `${user}_drawing_${round}`;
 		player.addImage(imageId, base64, round);
 
 		// Load base64 texture
 		this.textures.addBase64(imageId, base64);
 		this.textures.once("addtexture-" + imageId, () => {
-			this.add.image(this.CX, this.CY, imageId);
+			// Image is ready
 		});
 
-		// Check if all players have submitted
-		const allImagesDone = this.players.every((player) =>
-			player.images.find((image) => image.round == round)
+		// Update player panel submission count
+		this.playerPanel.updateCount(
+			this.players.map((player) => player.images.length),
+			MAX_IMAGES
 		);
-		if (allImagesDone) {
-			this.drawingPage.allPlayersDone();
-		}
+
+		// Check if all players have submitted
+		const allImagesDone = this.players.every(
+			(player) => player.images.length >= MAX_IMAGES
+		);
+		// if (allImagesDone) {
+		// 	// this.drawingPage.allPlayersDone();
+		// 	this.addEvent(1000, this.progressState, this);
+		// }
 	}
 
 	onSubmitText({ user, text }: Client.SubmitText) {
-		console.log("User submitted text", user, text);
+		const player = this.getPlayer(user);
+		if (!player) {
+			return console.error("Player not found", user);
+		}
+		if (this.state != GameState.Writing) {
+			return console.error("Cannot submit text in current state", this.state);
+		}
+
+		// Add text to player
+		const round = player.texts.length + 1;
+		const textId = `${user}_writing_${round}`;
+		player.addText(textId, text, round);
+
+		// Update player panel submission count
+		this.playerPanel.updateCount(
+			this.players.map((player) => player.texts.length),
+			MAX_TEXTS
+		);
+
+		// Check if all players have submitted
+		const allTextsDone = this.players.every(
+			(player) => player.texts.length >= MAX_TEXTS
+		);
+		// if (allTextsDone) {
+		// 	// this.writingPage.allPlayersDone();
+		// 	this.addEvent(1000, this.progressState, this);
+		// }
 	}
 
 	onSubmitVote({ user, vote }: Client.SubmitVote) {
@@ -205,7 +275,36 @@ export class GameScene extends BaseScene implements ClientIncoming {
 	}
 
 	onSubmitMashup({ user, imageId, textId }: Client.SubmitMashup) {
-		console.log("User submitted mashup", user, imageId, textId);
+		const player = this.getPlayer(user);
+		if (!player) {
+			return console.error("Player not found", user);
+		}
+		if (this.state != GameState.Pairing) {
+			return console.error(
+				"Cannot submit pairing in current state",
+				this.state
+			);
+		}
+
+		// Add image to player
+		const round = player.pairings.length + 1;
+		const pairingId = `${user}_pairing_${round}`;
+		player.addPairing(pairingId, imageId, textId);
+
+		// Update player panel submission count
+		this.playerPanel.updateCount(
+			this.players.map((player) => player.pairings.length),
+			MAX_PAIRINGS
+		);
+
+		// Check if all players have submitted
+		const allPairingsDone = this.players.every(
+			(player) => player.pairings.length >= MAX_PAIRINGS
+		);
+		// if (allPairingsDone) {
+		// 	// this.pairingPage.allPlayersDone();
+		// 	this.addEvent(1000, this.progressState, this);
+		// }
 	}
 
 	/* Getters */
@@ -214,7 +313,18 @@ export class GameScene extends BaseScene implements ClientIncoming {
 		return this.socket;
 	}
 
+	getPlayers(): Player[] {
+		return this.players;
+	}
+
 	getPlayer(userId: string): Player | undefined {
 		return this.players.find((player) => player.userId == userId);
+	}
+
+	getPlayerText(textId: string) {
+		const player = this.players.find((player) =>
+			player.texts.some((text) => text.id == textId)
+		);
+		return player?.texts.find((text) => text.id == textId)?.text;
 	}
 }
